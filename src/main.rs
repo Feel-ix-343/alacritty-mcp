@@ -5,6 +5,7 @@ use tracing::{info, error};
 mod alacritty_manager;
 mod mcp_server;
 mod types;
+mod neovim_context;
 
 use alacritty_manager::AlacrittyManager;
 use mcp_server::McpServer;

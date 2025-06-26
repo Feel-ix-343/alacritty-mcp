@@ -5,7 +5,7 @@ use tracing::{error, debug};
 use crate::alacritty_manager::AlacrittyManager;
 use crate::types::{
     JsonRpcRequest, JsonRpcResponse, JsonRpcError, Tool, ServerCapabilities,
-    InitializeParams, SpawnParams, SendKeysParams, ScreenshotParams
+    InitializeParams, SpawnParams, SendKeysParams, ScreenshotParams, NeovimContextParams
 };
 
 pub struct McpServer {
@@ -169,6 +169,7 @@ impl McpServer {
             "spawn_instance" => self.handle_spawn_instance(arguments).await,
             "send_keys" => self.handle_send_keys(arguments).await,
             "screenshot_instance" => self.handle_screenshot_instance(arguments).await,
+            "get_neovim_context" => self.handle_get_neovim_context(arguments).await,
             _ => Err(anyhow!("Unknown tool: {}", tool_name)),
         };
 
@@ -238,6 +239,16 @@ impl McpServer {
             "image" => Ok(format!("Screenshot image from instance {} (base64): {}", params.instance_id, screenshot)),
             _ => Err(anyhow!("Unsupported format: {}", format)),
         }
+    }
+
+    async fn handle_get_neovim_context(&mut self, arguments: Value) -> Result<String> {
+        let params: NeovimContextParams = serde_json::from_value(arguments)
+            .map_err(|e| anyhow!("Invalid neovim context parameters: {}", e))?;
+        
+        let context = self.manager.get_neovim_context(params.clone()).await?;
+        let json_result = serde_json::to_string_pretty(&context)?;
+        
+        Ok(format!("Neovim context for instance {}:\n{}", params.instance_id, json_result))
     }
 
     fn get_tools(&self) -> Vec<Tool> {
@@ -314,6 +325,38 @@ impl McpServer {
                             "enum": ["text", "image"],
                             "description": "Format of the screenshot: 'text' for terminal text content, 'image' for visual screenshot",
                             "default": "text"
+                        }
+                    },
+                    "required": ["instance_id"],
+                    "additionalProperties": false
+                }),
+            },
+            Tool {
+                name: "get_neovim_context".to_string(),
+                description: "Extract comprehensive Neovim context including cursor position, diagnostics, open buffers, and LSP status".to_string(),
+                input_schema: json!({
+                    "type": "object",
+                    "properties": {
+                        "instance_id": {
+                            "type": "string",
+                            "description": "ID of the Alacritty instance running Neovim"
+                        },
+                        "include_diagnostics": {
+                            "type": "boolean",
+                            "description": "Include LSP diagnostics in the context",
+                            "default": true
+                        },
+                        "include_buffers": {
+                            "type": "boolean", 
+                            "description": "Include list of open buffers",
+                            "default": true
+                        },
+                        "context_lines": {
+                            "type": "number",
+                            "description": "Number of lines around cursor to include",
+                            "default": 5,
+                            "minimum": 0,
+                            "maximum": 50
                         }
                     },
                     "required": ["instance_id"],

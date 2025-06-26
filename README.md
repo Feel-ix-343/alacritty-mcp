@@ -7,7 +7,8 @@ A Model Context Protocol (MCP) server for controlling Alacritty terminal instanc
 This MCP server enables Claude to interact with terminal applications in powerful ways:
 
 ### 🔍 **Context Reading & Application Monitoring**
-- **Read Neovim context** - View currently open files, cursor position, and buffer content
+- **Read Neovim context** - Extract current file, cursor position, LSP diagnostics, open buffers, and vim mode
+- **LSP integration** - Access error messages, warnings, and code intelligence from language servers
 - **Monitor build processes** - Watch compilation output and test results in real-time  
 - **Debug application state** - Inspect running processes and system information
 - **Track log files** - Monitor application logs and system events
@@ -35,6 +36,7 @@ This MCP server enables Claude to interact with terminal applications in powerfu
 - **Spawn Instances**: Create new Alacritty terminals with custom configurations
 - **Send Keys**: Send keyboard commands to specific terminal instances
 - **Screenshot**: Capture terminal content as text or visual screenshots
+- **Neovim Context**: Extract comprehensive editing context from Neovim instances
 
 ## Requirements
 
@@ -95,6 +97,23 @@ Captures content from an Alacritty instance.
 
 **Returns:** Screenshot content in the requested format.
 
+### get_neovim_context
+Extracts comprehensive context from a Neovim instance running in an Alacritty terminal.
+
+**Parameters:**
+- `instance_id` (required): ID of the Alacritty instance running Neovim
+- `include_diagnostics` (optional): Include LSP diagnostics (default: true)
+- `include_buffers` (optional): Include list of open buffers (default: true)
+- `context_lines` (optional): Number of lines around cursor to include (default: 5)
+
+**Returns:** Structured Neovim context including:
+- Current file and cursor position
+- LSP diagnostics (errors, warnings, hints)
+- Open buffers and their status
+- Vim mode and working directory
+- Active LSP clients and their status
+- Surrounding code context
+
 ## Example JSON-RPC Calls
 
 ### Initialize
@@ -147,6 +166,41 @@ Captures content from an Alacritty instance.
 }
 ```
 
+### Get Neovim Context
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "get_neovim_context",
+    "arguments": {
+      "instance_id": "uuid-here",
+      "include_diagnostics": true,
+      "include_buffers": true,
+      "context_lines": 10
+    }
+  },
+  "id": 4
+}
+```
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "content": [
+      {
+        "text": "Neovim context for instance uuid-here:\n{\n  \"instance_info\": {\n    \"pid\": 12345,\n    \"socket_path\": \"/tmp/nvim.12345.0\",\n    \"version\": \"NVIM v0.11.2\",\n    \"config_path\": \"/home/user/.config/nvim\"\n  },\n  \"current_buffer\": {\n    \"file_path\": \"/home/user/project/src/main.rs\",\n    \"file_type\": \"rust\",\n    \"is_modified\": true,\n    \"line_count\": 150,\n    \"surrounding_context\": {\n      \"lines_before\": [\"fn main() {\", \"    let config = Config::new();\"],\n      \"current_line\": \"    let result = process_data(config);\",\n      \"lines_after\": [\"    println!(\\\"Result: {:?}\\\", result);\", \"}\"]\n    }\n  },\n  \"diagnostics\": [\n    {\n      \"file_path\": \"/home/user/project/src/main.rs\",\n      \"line\": 42,\n      \"column\": 15,\n      \"severity\": \"Error\",\n      \"message\": \"cannot find function `process_data` in this scope\",\n      \"source\": \"rust-analyzer\"\n    }\n  ],\n  \"cursor_position\": {\n    \"line\": 42,\n    \"column\": 28,\n    \"line_content\": \"    let result = process_data(config);\"\n  },\n  \"vim_mode\": \"n\",\n  \"lsp_status\": {\n    \"active_clients\": [\n      {\n        \"name\": \"rust-analyzer\",\n        \"file_types\": [\"rust\"],\n        \"status\": \"active\"\n      }\n    ],\n    \"diagnostics_count\": {\n      \"errors\": 1,\n      \"warnings\": 0,\n      \"info\": 0,\n      \"hints\": 2\n    }\n  }\n}",
+        "type": "text"
+      }
+    ]
+  },
+  "error": null,
+  "id": 4
+}
+```
+
 ## Testing
 
 The project includes comprehensive test coverage:
@@ -177,22 +231,37 @@ cargo test --test functional_tests
 - ⚠️ **Key sending** - Requires `xdotool` (skipped if not available)
 - ⚠️ **Screenshots** - Requires `xclip` (skipped if not available)
 
+### Neovim Integration Tests
+Test Neovim context extraction (requires Neovim installed):
+```bash
+cargo test --test neovim_integration_tests
+```
+
+**Neovim tests include:**
+- ✅ **Neovim detection** - Identify Neovim instances in terminals
+- ✅ **Context extraction** - Extract editing state and diagnostics
+- ✅ **Real Neovim spawning** - Launch and communicate with Neovim
+- ✅ **Pattern recognition** - Detect Neovim UI elements
+- ✅ **LSP integration** - Access language server diagnostics
+
 ### Run All Tests
 ```bash
 cargo test
 ```
 
-**Test Results:** 24 total tests
+**Test Results:** 29 total tests
 - 11 unit tests ✅
 - 8 integration tests ✅  
 - 5 functional tests ✅
+- 5 Neovim integration tests ✅
 
 Note: Some functional tests require X11 environment and system tools, and may be skipped in headless CI environments.
 
 ## Architecture
 
 - `AlacrittyManager`: Core logic for managing terminal instances
-- `McpServer`: JSON-RPC server implementation
+- `McpServer`: JSON-RPC server implementation  
+- `NeovimContextExtractor`: Neovim-specific context extraction and LSP integration
 - `types`: Data structures and type definitions
 
 ## Limitations

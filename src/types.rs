@@ -80,3 +80,11 @@ pub struct ScreenshotParams {
     pub instance_id: String,
     pub format: Option<String>, // "text" or "image"
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NeovimContextParams {
+    pub instance_id: String,
+    pub include_diagnostics: Option<bool>,
+    pub include_buffers: Option<bool>,
+    pub context_lines: Option<u32>, // Number of lines around cursor
+}

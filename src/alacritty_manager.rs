@@ -4,16 +4,19 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{Result, anyhow};
 use uuid::Uuid;
 
-use crate::types::{AlacrittyInstance, SpawnParams, SendKeysParams, ScreenshotParams};
+use crate::types::{AlacrittyInstance, SpawnParams, SendKeysParams, ScreenshotParams, NeovimContextParams};
+use crate::neovim_context::{NeovimContextExtractor, NeovimContext};
 
 pub struct AlacrittyManager {
     instances: HashMap<String, AlacrittyInstance>,
+    neovim_extractor: NeovimContextExtractor,
 }
 
 impl AlacrittyManager {
     pub fn new() -> Self {
         Self {
             instances: HashMap::new(),
+            neovim_extractor: NeovimContextExtractor::new(),
         }
     }
 
@@ -210,6 +213,52 @@ impl AlacrittyManager {
         let _ = std::fs::remove_file(&temp_file);
 
         Ok(format!("data:image/png;base64,{}", base64_data))
+    }
+
+    pub async fn get_neovim_context(&self, params: NeovimContextParams) -> Result<NeovimContext> {
+        let instance = self.instances.get(&params.instance_id)
+            .ok_or_else(|| anyhow!("Instance not found: {}", params.instance_id))?;
+
+        // First, check if this terminal is likely running Neovim
+        if let Ok(screenshot) = self.screenshot_text(instance.window_id.unwrap_or(0)).await {
+            if !self.neovim_extractor.detect_neovim_in_terminal(&screenshot) {
+                // Try to detect by process inspection
+                if !self.is_neovim_process(instance.pid).await? {
+                    return Err(anyhow!("Terminal does not appear to be running Neovim"));
+                }
+            }
+        }
+
+        // Extract Neovim context
+        self.neovim_extractor
+            .extract_context_from_instance(&params.instance_id, instance.pid)
+            .await
+    }
+
+    async fn is_neovim_process(&self, pid: u32) -> Result<bool> {
+        // Check if the process or any child process is nvim
+        let output = Command::new("ps")
+            .args(&["--ppid", &pid.to_string(), "-o", "comm="])
+            .output()?;
+
+        if output.status.success() {
+            let processes = String::from_utf8_lossy(&output.stdout);
+            if processes.lines().any(|line| line.trim().contains("nvim")) {
+                return Ok(true);
+            }
+        }
+
+        // Also check the main process
+        let output = Command::new("ps")
+            .args(&["-p", &pid.to_string(), "-o", "comm="])
+            .output()?;
+
+        if output.status.success() {
+            let process_name = String::from_utf8_lossy(&output.stdout);
+            return Ok(process_name.trim().contains("nvim"));
+        }
+
+        Ok(false)
     }
 
     async fn refresh_instances(&mut self) -> Result<()> {
