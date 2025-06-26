@@ -1,0 +1,24 @@
+[package]
+name = "alacritty-mcp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+regex = "1.0"
+uuid = { version = "1.0", features = ["v4"] }
+libc = "0.2"
+nix = { version = "0.27", features = ["process", "signal"] }
+
+[dev-dependencies]
+tempfile = "3.8"
+serial_test = "3.0"
+
+[[bin]]
+name = "alacritty-mcp"
+path = "src/main.rs"
