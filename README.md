@@ -2,6 +2,33 @@
 
 A Model Context Protocol (MCP) server for controlling Alacritty terminal instances.
 
+## Use Cases
+
+This MCP server enables Claude to interact with terminal applications in powerful ways:
+
+### 🔍 **Context Reading & Application Monitoring**
+- **Read Neovim context** - View currently open files, cursor position, and buffer content
+- **Monitor build processes** - Watch compilation output and test results in real-time  
+- **Debug application state** - Inspect running processes and system information
+- **Track log files** - Monitor application logs and system events
+
+### 🧪 **Interactive Testing & Development**
+- **Test TUI applications** - Validate interactive terminal interfaces Claude has built
+- **Run development workflows** - Execute build scripts, tests, and deployment commands
+- **Interactive debugging** - Step through code execution and inspect variables
+- **Prototype validation** - Quickly test CLI tools and terminal-based applications
+
+### 🚀 **Automation & Orchestration**
+- **Multi-terminal workflows** - Coordinate complex development environments
+- **Parallel task execution** - Run multiple processes simultaneously across terminals
+- **Environment setup** - Automate development environment configuration
+- **CI/CD integration** - Execute and monitor build pipelines
+
+### 📊 **System Administration**
+- **Server monitoring** - Track system resources and process health
+- **Remote task execution** - Run administrative commands across multiple sessions
+- **Log aggregation** - Collect and analyze output from various system components
+
 ## Features
 
 - **List Instances**: Discover all running Alacritty terminal instances
